@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     news_keywords: str = 'python,fastapi,django,ai,aiogram,нейросети'
 
     @property
-    def keywords_list(self) -> list(str):
+    def keywords_list(self) -> list[str]:
         raw_value = self.news_keywords
         parts = [part.strip() for part in raw_value.split(',') if part.strip()]
         return parts
+
+
+settings=Settings()
