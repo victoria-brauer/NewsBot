@@ -1,6 +1,8 @@
-"""Маршруты для FastAPI"""
+""" Маршруты для FastAPI """
 from fastapi import APIRouter, HTTPException, status
+from app.parser.main import news_item
 from app.schemas import NewsItem, PublishedNews, Keywords
+from app.news_parser import collect_from_all_sources
 
 
 api_router = APIRouter()
@@ -18,7 +20,7 @@ async def news_list() -> list[NewsItem]:
             id="test1",
             title="FASTAPI 2.0.1 is released",
             url="https://fastapi.com/",
-            summary="Короткое описание новости o FastAPI",
+            summary="Краткое описание новости o FastAPI",
             source="FastAPI blog",
             published_at="2025-01-01T00:00:00Z",
             keywords=["python", "fastapi"]
@@ -27,10 +29,17 @@ async def news_list() -> list[NewsItem]:
             id="test2",
             title="Python 3.15.1 is released",
             url="https://python.org/",
-            summary="Короткое описание новости o Python",
+            summary="Краткое описание новости o Python",
             source="Python blog",
             published_at="2025-01-02T00:00:00Z",
             keywords=["python"]
         )
     ]
     return fake_news
+
+
+@api_router.get("/news/scrape", response_model=list[NewsItem])
+async def scrape_news():
+    news_items = collect_from_all_sources()
+    return news_items
+
