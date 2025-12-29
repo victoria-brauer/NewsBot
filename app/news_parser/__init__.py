@@ -81,7 +81,7 @@ def collect_from_all_sources() -> list[NewsItem]:
 
     sources: list[tuple[str, Any]] = [
         ("habr", habr.fetch_habr_news_raw),
-        # ("rbc", rbc.fetch_rbc_news_raw),
+        ("rbc", rbc.fetch_rbc_news_raw),
     ]
 
     for source_name, fetch_func in sources:
