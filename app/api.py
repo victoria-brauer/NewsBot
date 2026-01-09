@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.parser.main import news_item
 from app.schemas import NewsItem, PublishedNews, Keywords
 from app.news_parser import collect_from_all_sources
+from app.redis_client import ping_redis
 
 
 api_router = APIRouter()
@@ -10,7 +11,11 @@ api_router = APIRouter()
 
 @api_router.get("/health")
 async def health():
-    return {"status": "ok"}
+    redis_ok = ping_redis()
+    return {
+        "status": "ok",
+        "redis": redis_ok,
+    }
 
 
 @api_router.get("/news", response_model=list[NewsItem])

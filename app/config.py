@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     redis_url: str = 'redis://localhost:6379/0'
+    project_name: str = 'newsbot'
 
     telegram_api_id: int = 0
     telegram_api_hash: str = ""
