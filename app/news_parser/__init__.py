@@ -1,50 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime
-import hashlib
 import logging
 from typing import Any
 
 from app.schemas import NewsItem
 from app.news_parser import habr, rbc
+from app.utils import generate_news_id, normalize_published_at
 
 logger = logging.getLogger(__name__)
 
 NEWS_SOURCES = ["habr", "rbc"]
 
 
-def generate_news_id(source: str, url: str) -> str:
-    base = f"{source}:{url}"
-    return hashlib.sha256(base.encode("utf-8")).hexdigest()
-
-
-def normalize_published_at(raw_published_at: str | datetime | None) -> datetime | None:
-    if isinstance(raw_published_at, datetime):
-        return raw_published_at
-
-    if not raw_published_at:
-        return None
-
-    if isinstance(raw_published_at, str):
-        possible_formats = [
-            "%Y-%m-%dT%H:%M:%S",       # 2025-01-01T12:30:45
-            "%Y-%m-%dT%H:%M:%S%z",     # 2025-01-01T12:30:45+0300 / +03:00 (иногда)
-            "%Y-%m-%dT%H:%M:%S.%f",    # 2025-01-01T12:30:45.123456
-            "%Y-%m-%dT%H:%M:%S.%f%z",  # 2025-01-01T12:30:45.123456+0300
-            "%d.%m.%Y, %H:%M:%S",      # 01.01.2025, 12:30:45
-            "%d.%m.%Y, %H:%M",         # 01.01.2025, 12:30
-        ]
-
-        for fmt in possible_formats:
-            try:
-                return datetime.strptime(raw_published_at, fmt)
-            except ValueError:
-                continue
-
-    return None
-
-
 def normalize_raw_news(source_name: str, raw_item: dict[str, Any]) -> NewsItem:
+    """Привести сырую новость к формату NewsItem"""
     raw_title = raw_item.get("title", "")
     title = str(raw_title).strip()
 
@@ -77,6 +46,7 @@ def normalize_raw_news(source_name: str, raw_item: dict[str, Any]) -> NewsItem:
 
 
 def collect_from_all_sources() -> list[NewsItem]:
+    """Собрать и нормализовать новости из всех источников"""
     collected_news: list[NewsItem] = []
 
     sources: list[tuple[str, Any]] = [

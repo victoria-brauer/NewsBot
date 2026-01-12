@@ -1,12 +1,18 @@
-"""Pydantic-схемы"""
+"""Pydantic-схемы. Модели:
+- NewsItem: новость (сырые данные после парсинга)
+- PublishedNews: сгенерированный/опубликованный пост по новости
+- Source: источник новостей
+- Keywords: ключевое слово для фильтрации
+"""
 from datetime import datetime
 from pydantic import BaseModel, Field, AnyHttpUrl
+from typing import Literal
 
 
 class NewsItem(BaseModel):
     id: str = Field(
         ...,
-        description="uuid новости",
+        description="Уникальный идентификатор новости (uuid или hash)",
         examples=["fhygiy7dxcb4557ffxdhjlkj9097t543"],
     )
     title: str = Field(
@@ -33,27 +39,29 @@ class NewsItem(BaseModel):
         min_length=1,
         max_length=100,
         description="Имя источника",
-        examples=["Habr"],
+        examples=["habr"],
     )
-
-
     published_at: datetime | None = Field(
         default=None,
         description="Время публикации на новостном источнике",
         examples=["2025-01-01T00:00:00Z"],
     )
-
+    raw_text: str | None = Field(
+        default=None,
+        description="Сырой текст (актуально для Telegram-источников)",
+        examples=["Сегодня вышел релиз FastAPI 1.0..."],
+    )
     keywords: list[str] = Field(
         default_factory=list,
-        description="Список ключевых слов",
-        examples=[["Python", "FastAPI"]],
+        description="Список ключевых слов, связанных с новостью",
+        examples=[["python", "fastapi"]],
     )
 
 
 class PublishedNews(BaseModel):
     news_id: str = Field(
         ...,
-        description="uuid новости",
+        description="Идентификатор новости (uuid или hash)",
         examples=["fhygiy7dxcb4557ffxdhjlkj9097t543"],
     )
     published_at: datetime = Field(
@@ -80,6 +88,38 @@ class Keywords(BaseModel):
         max_length=100,
         description="Ключевое слово новости",
         examples=["python", "fastapi"],
+    )
+
+
+class Source(BaseModel):
+    id: int = Field(
+        ...,
+        description="Идентификатор источника.",
+        examples=[1],
+    )
+    type: Literal["site", "tg"] = Field(
+        ...,
+        description="Тип источника.",
+        examples=["site"],
+    )
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Название источника.",
+        examples=["Habr"],
+    )
+    url: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="URL сайта или username Telegram-канала.",
+        examples=["https://habr.com/ru/news/", "@some_public_channel"],
+    )
+    enabled: bool = Field(
+        default=True,
+        description="Флаг активности источника.",
+        examples=[True],
     )
 
 
