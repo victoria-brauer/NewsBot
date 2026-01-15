@@ -5,14 +5,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file='.env',
-        env_file_encoding='utf-8',
+        env_file=".env",
+        env_file_encoding="utf-8",
     )
 
     debug: bool = False            #Включает расширенное логирование, отладочный режим
+    strict_filtering: bool = True  #Флаг строгой фильтрации новостей
 
-    redis_url: str = 'redis://localhost:6379/0'
-    project_name: str = 'newsbot'
+    redis_url: str = "redis://localhost:6379/0"
+    project_name: str = "newsbot"
 
     telegram_api_id: int = 0        #Telegram API ID для Telethon
     telegram_api_hash: str = ""     #Telegram API hash для Telethon
@@ -20,7 +21,7 @@ class Settings(BaseSettings):
     telegram_channel_id: str = ""   #ID/username канала для публикаций
 
     # Фильтры ключевых слов по умолчанию (можно переопределить через .env)
-    news_keywords: str = 'python,fastapi,django,ai,aiogram,нейросети'
+    news_keywords: str = "python,fastapi,django,ai,aiogram,нейросети"
 
     @property
     def keywords_list(self) -> list[str]:

@@ -41,3 +41,59 @@ def normalize_published_at(raw_published_at: str | datetime | None) -> datetime 
                 continue
 
     return None
+
+
+def prepare_keywords(raw_keywords: list[str]) -> list[str]:
+    """Нормализовать список ключевых слов: lower, trim, unique."""
+    seen: set[str] = set()
+    for word in raw_keywords:
+        normalized = str(word).strip().lower()
+        if normalized:
+            seen.add(normalized)
+    return list(seen)
+
+
+def build_search_text(title: str, summary: str | None) -> str:
+    """Собрать текст (title + summary) для поиска ключевых слов."""
+    safe_summary = summary or ""
+    text = f"{title}\n{safe_summary}"
+    return text.lower()
+
+
+def find_matched_keywords(text: str, keywords: list[str]) -> list[str]:
+    """Вернуть список ключевых слов, которые встречаются в тексте."""
+    matched: list[str] = []
+    seen: set[str] = set()
+
+    for keyword in keywords:
+        if keyword in seen:
+            continue
+
+        if keyword in text:
+            seen.add(keyword)
+            matched.append(keyword)
+    return matched
+
+
+def match_keywords(title: str, summary: str | None, keywords: list[str]) -> list[str]:
+    """Найти ключевые слова по title/summary."""
+    text = build_search_text(title, summary)
+
+
+
+# def prepare_keywords(raw_keywords: list[str]) -> list[str]:
+#     prepared: list[str] = []
+#     seen = set[str] = set()
+#
+#     for word in raw_keywords:
+#         normalized = str(word).strip().lower()
+#
+#         if not normalized:
+#             continue
+#         if normalized in seen:
+#             continue
+#
+#         seen.add(normalized)
+#     prepared = list(seen)
+#     return prepared
+
