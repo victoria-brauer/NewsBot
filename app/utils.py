@@ -1,14 +1,23 @@
-"""Вспомогательные утилиты"""
+"""Вспомогательные утилиты.
+    Здесь находятся:
+    - генерация стабильных идентификаторов новостей,
+    - нормализация даты и времени публикации.
+"""
 import hashlib
 from datetime import datetime
 
 
 def generate_news_id(source: str, url: str) -> str:
+    """Сгенерировать стабильный идентификатор новости."""
     base = f"{source}:{url}"
     return hashlib.sha256(base.encode("utf-8")).hexdigest()
 
 
 def normalize_published_at(raw_published_at: str | datetime | None) -> datetime | None:
+    """Нормализовать дату и время публикации новости.
+        Объект datetime при успешном парсинге,
+        либо None, если значение отсутствует или формат неизвестен.
+    """
     if isinstance(raw_published_at, datetime):
         return raw_published_at
 
