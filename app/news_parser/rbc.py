@@ -1,11 +1,12 @@
+""" Парсер с сайта rbc.ru """
 import logging
+
 import requests
 from bs4 import BeautifulSoup
 
-""" Парсер с сайта rbc.ru """
 
 RBC_BASE_URL = "https://www.rbc.ru"
-# Можно поменять на другую рубрику
+# Можно поменять на другую рубрику (например: /technology/, /politics/...)
 RBC_NEWS_URL = f"{RBC_BASE_URL}/gorod/"
 
 DEFAULT_HEADERS: dict[str, str] = {
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_rbc_list_html(html: str, limit: int) -> list[dict[str, str]]:
+    """Распарсить HTML страницы с новостями RBC."""
     soup = BeautifulSoup(html, "html.parser")
     news_items: list[dict[str, str]] = []
 
@@ -49,11 +51,15 @@ def parse_rbc_list_html(html: str, limit: int) -> list[dict[str, str]]:
 
 
 def fetch_rbc_news_raw(limit: int = 20) -> list[dict[str, str]]:
+    """Загрузить и распарсить список новостей с RBC.
+        Список "сырых" новостей в виде словарей.
+        В случае ошибки возвращается пустой список.
+    """
     try:
         response = requests.get(RBC_NEWS_URL, headers=DEFAULT_HEADERS, timeout=10)
         response.raise_for_status()
-    except requests.RequestException:
-        logger.exception("Ошибка при парсинге новостей с RBC")
+    except requests.RequestException as exc:
+        logger.warning("Ошибка при запросе новостей RBC: %s", exc)
         return []
 
     return parse_rbc_list_html(response.text, limit=limit)

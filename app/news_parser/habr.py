@@ -1,8 +1,9 @@
+""" Парсер с сайта habr.com """
 import logging
+
 import requests
 from bs4 import BeautifulSoup
 
-""" Парсер с сайта habr.com """
 HABR_BASE_URL = "https://habr.com"
 HABR_NEWS_URL = f"{HABR_BASE_URL}/news/"
 HABR_ARTICLE_URL = f"{HABR_BASE_URL}/article/"
@@ -20,9 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 def parser_habr_list_html(html: str, limit: int) -> list[dict]:
+    """Распарсить HTML страницы новостей Habr.
+        Извлекает заголовки и ссылки на новости.
+    """
     soup = BeautifulSoup(html, "html.parser")
     # soup = BeautifulSoup(html, "lxml") # Дополнительный парсер
-
     news_items: list[dict] = []
 
     article_tags = soup.select(HABR_CARD_SELECTOR)
@@ -54,6 +57,10 @@ def parser_habr_list_html(html: str, limit: int) -> list[dict]:
 
 
 def fetch_habr_news_raw(limit: int = 20) -> list[dict[str, str]]:
+    """Загрузить и распарсить список новостей с Habr.
+        Список "сырых" новостей в виде словарей.
+        В случае ошибки возвращается пустой список.
+    """
     raw_items: list[dict[str, str]] = []
 
     try:
