@@ -17,7 +17,6 @@ class Settings(BaseSettings):
 
     telegram_api_id: int = 0        #Telegram API ID для Telethon
     telegram_api_hash: str = ""     #Telegram API hash для Telethon
-    telegram_bot_token: str = ""    #Bot API token (если используешь бота)
     telegram_channel_id: str = ""   #ID/username канала для публикаций
 
     # Фильтры ключевых слов по умолчанию (можно переопределить через .env)
