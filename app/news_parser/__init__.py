@@ -75,7 +75,3 @@ def collect_from_all_sources() -> list[NewsItem]:
             collected_news.append(news_item)
 
     return collected_news
-
-
-
-

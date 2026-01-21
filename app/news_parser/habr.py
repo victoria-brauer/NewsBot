@@ -8,7 +8,7 @@ HABR_BASE_URL = "https://habr.com"
 HABR_NEWS_URL = f"{HABR_BASE_URL}/news/"
 HABR_ARTICLE_URL = f"{HABR_BASE_URL}/article/"
 
-HABR_CARD_SELECTOR = "article" # "article.tm-articles-list__item"
+HABR_CARD_SELECTOR = "article"
 HABR_TITLE_SELECTOR = "a"
 HABR_TITLE_LINK_SELECTOR = "tm-title__link"
 
@@ -25,11 +25,9 @@ def parser_habr_list_html(html: str, limit: int) -> list[dict]:
         Извлекает заголовки и ссылки на новости.
     """
     soup = BeautifulSoup(html, "html.parser")
-    # soup = BeautifulSoup(html, "lxml") # Дополнительный парсер
     news_items: list[dict] = []
 
     article_tags = soup.select(HABR_CARD_SELECTOR)
-    # article_tags = soup.select("article")
 
     for article_tag in article_tags:
         title_link = article_tag.find(HABR_TITLE_SELECTOR, class_=HABR_TITLE_LINK_SELECTOR)
@@ -76,6 +74,3 @@ def fetch_habr_news_raw(limit: int = 20) -> list[dict[str, str]]:
     raw_items = parser_habr_list_html(response.text, limit=limit)
 
     return raw_items
-
-
-
