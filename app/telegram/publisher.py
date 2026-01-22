@@ -1,6 +1,6 @@
 """Публикация новостей в Telegram.
 Этот модуль можно запускать как скрипт:
-    python app/telegram/publisher.py
+    python -m app.telegram.publisher
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import logging
 
 from app.config import settings
 from app.news_parser import collect_from_all_sources
+from app.redis_client import get_redis_client
 from app.schemas import NewsItem
 from app.telegram.bot import get_telegram_client
 
@@ -21,6 +22,9 @@ SUMMARY_MAX_LENGTH = 700
 
 # Сколько новостей отправлять за один запуск
 PUBLISH_LIMIT = 5
+
+# Redis key, множество URL уже опубликованных новостей
+PUBLISHED_URLS_KEY = "news:published_urls"
 
 
 def normalize_text(value: str | None) -> str:
@@ -65,7 +69,6 @@ def match_keywords(title: str, summary: str | None, keywords: list[str]) -> list
 
 def format_news_message(item: NewsItem) -> str:
     """Сформировать HTML-сообщение для Telegram."""
-
     title = truncate_text(normalize_text(item.title), TITLE_MAX_LENGTH)
 
     source = normalize_text(item.source)
@@ -97,13 +100,42 @@ def format_news_message(item: NewsItem) -> str:
     return "\n\n".join(parts)
 
 
+def filter_not_published(items: list[NewsItem]) -> list[NewsItem]:
+    """Оставить только новости, которые еще не публиковались (по URL)."""
+    client = get_redis_client()
+    result: list[NewsItem] = []
+
+    skipped = 0
+    for item in items:
+        url = str(item.url) if item.url else ""
+        if not url:
+            continue
+
+        already = client.sismember(PUBLISHED_URLS_KEY, url)
+        if already:
+            skipped += 1
+            continue
+
+        result.append(item)
+
+    logger.info("Дедупликация: пропущено уже опубликованных=%s", skipped)
+    return result
+
+
+def mark_published(urls: list[str]) -> None:
+    """Пометить URL как опубликованные (добавить в Redis SET)."""
+    if not urls:
+        return
+    client = get_redis_client()
+    client.sadd(PUBLISHED_URLS_KEY, *urls)
+
+
 async def publish_latest_news(limit: int = PUBLISH_LIMIT) -> int:
     """Собрать и опубликовать свежие новости в Telegram.
         Сколько сообщений отправлено.
     """
     items = collect_from_all_sources()
     logger.info("Собрано новостей: %s", len(items))
-
     if not items:
         return 0
 
@@ -120,14 +152,20 @@ async def publish_latest_news(limit: int = PUBLISH_LIMIT) -> int:
         item.keywords = matched
         filtered.append(item)
 
-    logger.info("После фильтрации: %s", len(filtered))
-
+    logger.info("После фильтрации по ключевым словам: %s", len(filtered))
     if not filtered:
+        return 0
+
+    #Дедупликация по URL (Redis)
+    filtered = filter_not_published(filtered)
+    if not filtered:
+        logger.info("Новых (не опубликованных) новостей нет")
         return 0
 
     to_send = filtered[:limit]
 
     client = await get_telegram_client()
+    sent_urls: list[str] = []
     try:
         sent = 0
         for item in to_send:
@@ -138,6 +176,14 @@ async def publish_latest_news(limit: int = PUBLISH_LIMIT) -> int:
                 parse_mode="html",
             )
             sent += 1
+
+            url = str(item.url) if item.url else ""
+            if url:
+                sent_urls.append(url)
+
+        #Помечаем как опубликованные только то, что реально отправили
+        mark_published(sent_urls)
+
         logger.info("Отправлено сообщений: %s", sent)
         return sent
     finally:

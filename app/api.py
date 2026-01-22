@@ -1,7 +1,7 @@
 """ Маршруты для FastAPI """
 from fastapi import APIRouter, HTTPException, status
 from app.parser.main import news_item
-from app.schemas import NewsItem, PublishedNews, Keywords
+from app.schemas import NewsItem, PublishedNews, Keywords, Source
 from app.news_parser import collect_from_all_sources
 from app.redis_client import ping_redis
 
@@ -47,4 +47,3 @@ async def news_list() -> list[NewsItem]:
 async def scrape_news():
     news_items = collect_from_all_sources()
     return news_items
-
