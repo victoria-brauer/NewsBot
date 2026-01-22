@@ -16,31 +16,35 @@ NEWS_URL_SEEN_KEY = "new:urls_seen"
 NEWS_LATEST_IDS_KEY = "new:latest_ids"
 NEWS_LATEST_LIMIT = 100
 
-
-# Режим фильтрации:
-# Если True, то без keywords и без совпадений новости не возвращаем
-# Если False и если keywords пустой, то возвращаем все; если совпадений нет, то все равно возвращаем
-STRICT_FILTERING = settings.strict_filtering
-
 logger = logging.getLogger(__name__)
 
-
+"""Создаём экземпляр Celery-приложения"""
 celery_app = Celery(
-    settings.project_name,
-    broker=settings.redis_url,
-    backend=settings.redis_url,
+    settings.project_name, # имя приложения (используется в логах и конфигурации)
+    broker=settings.redis_url,# брокер сообщений (Redis), через который задачи попадают в очередь
+    backend=settings.redis_url,# хранилище результатов выполнения задач (тоже Redis)
 )
 
+"""Основная конфигурация Celery"""
 celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_serializer="json",
-    accept_content=["json"],
+    accept_content=["json"], # Принимаем только JSON-сообщения
     result_serializer="json",
-    broker_connect_retry_on_startup=True,
-    result_expires=3600,
-    task_default_queue="newsbot",
+    broker_connect_retry_on_startup=True, # Повторные попытки подключения к брокеру при старте
+    result_expires=3600, # Время хранения результатов задач (в секундах)
+    task_default_queue="newsbot", # Очередь по умолчанию
 )
+
+"""Расписание Celery Beat"""
+celery_app.conf.beat_schedule = {
+    "publish-news-every-30-min": {
+        "task": "app.tasks.publish_news",
+        "schedule": 30 * 60, # каждые 30 минут
+        "args": (5,), # по пять новостей
+    }
+}
 
 
 @celery_app.task(name="app.tasks.ping")
@@ -56,7 +60,7 @@ def collect_news() -> list[dict]:
     logger.info(f"collect news: keywords {keywords}")
 
     # Если keywords пустой
-    if not keywords and STRICT_FILTERING:
+    if not keywords and settings.strict_filtering:
         logger.info("collect_news: строгий режим включён, ключевые слова отсутствуют — возврат пустого списка")
         return []
 
@@ -69,7 +73,7 @@ def collect_news() -> list[dict]:
         matched = match_keywords(item.title, item.summary, keywords) if keywords else []
 
         # Если совпадений нет
-        if not matched and STRICT_FILTERING:
+        if not matched and settings.strict_filtering:
             continue
 
         payload = item.model_dump(mode="json")
@@ -123,16 +127,15 @@ def filter_new_items_by_urls_seen(items: list[dict]) -> list[dict]:
     news_items: list[dict] = []
 
     for item in items:
-        url = item.get('url')
+        url = item.get("url")
         if not url:
             continue
 
-        already_seen = client.get(NEWS_URL_SEEN_KEY, url)
-
-        if already_seen:
+        if client.sismember(NEWS_URL_SEEN_KEY, url):
             continue
 
         news_items.append(item)
+
     return news_items
 
 
@@ -161,13 +164,12 @@ def merge_and_trim_latest(new_items: list[dict], existing_items: list[dict]) -> 
 def save_latest_ids_to_redis(items: list[dict]) -> None:
     """Сохранить id новостей в Redis list."""
     client = get_redis_client()
-    ids: list[dict] = []
+    ids: list[str] = []
 
     for item in items:
-        news_id = item.get('id')
-
+        news_id = item.get("id")
         if news_id:
-            ids.append(NEWS_LATEST_IDS_KEY)
+            ids.append(str(news_id))
 
     if not ids:
         return
@@ -175,3 +177,11 @@ def save_latest_ids_to_redis(items: list[dict]) -> None:
     client.rpush(NEWS_LATEST_IDS_KEY, *ids)
 
 
+@celery_app.task(name="app.tasks.publish_news")
+def publish_news(limit: int = 5) -> int:
+    """Собрать свежие новости и опубликовать их в Telegram канал."""
+    # Asyncio внутри celery-таски
+    import asyncio
+    from app.telegram.publisher import publish_latest_news
+
+    return asyncio.run(publish_latest_news(limit=limit))
