@@ -44,56 +44,26 @@ def normalize_published_at(raw_published_at: str | datetime | None) -> datetime 
 
 
 def prepare_keywords(raw_keywords: list[str]) -> list[str]:
-    """Нормализовать список ключевых слов: lower, trim, unique."""
+    """Подготовить ключевые слова: нижний регистр + убрать пробелы + убрать дубликаты."""
     seen: set[str] = set()
+    result: list[str] = []
     for word in raw_keywords:
         normalized = str(word).strip().lower()
-        if normalized:
+        if normalized and normalized not in seen:
             seen.add(normalized)
-    return list(seen)
-
-
-def build_search_text(title: str, summary: str | None) -> str:
-    """Собрать текст (title + summary) для поиска ключевых слов."""
-    safe_summary = summary or ""
-    text = f"{title}\n{safe_summary}"
-    return text.lower()
-
-
-def find_matched_keywords(text: str, keywords: list[str]) -> list[str]:
-    """Вернуть список ключевых слов, которые встречаются в тексте."""
-    matched: list[str] = []
-    seen: set[str] = set()
-
-    for keyword in keywords:
-        if keyword in seen:
-            continue
-
-        if keyword in text:
-            seen.add(keyword)
-            matched.append(keyword)
-    return matched
+            result.append(normalized)
+    return result
 
 
 def match_keywords(title: str, summary: str | None, keywords: list[str]) -> list[str]:
-    """Найти ключевые слова по title/summary."""
-    text = build_search_text(title, summary)
+    """Найти ключевые слова, которые встретились в title/summary."""
+    if not keywords:
+        return []
+    text = (title + "\n" + (summary or "")).lower()
 
-
-
-# def prepare_keywords(raw_keywords: list[str]) -> list[str]:
-#     prepared: list[str] = []
-#     seen = set[str] = set()
-#
-#     for word in raw_keywords:
-#         normalized = str(word).strip().lower()
-#
-#         if not normalized:
-#             continue
-#         if normalized in seen:
-#             continue
-#
-#         seen.add(normalized)
-#     prepared = list(seen)
-#     return prepared
-
+    matched: list[str] = []
+    for kw in keywords:
+        if kw and kw in text:
+            matched.append(kw)
+    # Убираем дубли, сохранив порядок
+    return list(dict.fromkeys(matched))

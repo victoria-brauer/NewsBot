@@ -14,7 +14,9 @@ from app.utils import prepare_keywords, match_keywords
 NEWS_LATEST_KEY = "new:latest"
 NEWS_URL_SEEN_KEY = "new:urls_seen"
 NEWS_LATEST_IDS_KEY = "new:latest_ids"
+PUBLISHED_POSTS_KEY = "posts:published"
 NEWS_LATEST_LIMIT = 100
+
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,10 @@
 """ Маршруты для FastAPI """
+import json
 from fastapi import APIRouter, HTTPException, status
-from app.parser.main import news_item
 from app.schemas import NewsItem, PublishedNews, Keywords, Source
 from app.news_parser import collect_from_all_sources
-from app.redis_client import ping_redis
+from app.redis_client import ping_redis, get_redis_client
+from app.tasks import NEWS_LATEST_KEY, PUBLISHED_POSTS_KEY
 
 
 api_router = APIRouter()
@@ -11,6 +12,7 @@ api_router = APIRouter()
 
 @api_router.get("/health")
 async def health():
+    """Проверка состояния сервиса."""
     redis_ok = ping_redis()
     return {
         "status": "ok",
@@ -43,7 +45,32 @@ async def news_list() -> list[NewsItem]:
     return fake_news
 
 
+@api_router.get("/posts", response_model=list[PublishedNews])
+async def get_posts():
+    client = get_redis_client()
+    raw_items = client.lrange(PUBLISHED_POSTS_KEY, 0, -1)[::-1]
+
+    posts: list[PublishedNews] = []
+    for raw in raw_items:
+        try:
+            data = json.loads(raw)
+            posts.append(PublishedNews(**data))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+
+    return posts
+
+
 @api_router.get("/news/scrape", response_model=list[NewsItem])
-async def scrape_news():
-    news_items = collect_from_all_sources()
-    return news_items
+async def scrape_news() -> list[NewsItem]:
+    """Ручной запуск парсинга(без публикации)"""
+    return collect_from_all_sources()
+
+
+@api_router.post("/publish")
+async def publish_now():
+    """Ручной запуск задачи публикации новостей в Telegram"""
+    from app.tasks import publish_news
+
+    publish_news.delay()
+    return {"status": "publish task started"}

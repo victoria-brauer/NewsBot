@@ -27,8 +27,3 @@ def ping_redis() -> bool:
         return bool(result)
     except RedisError:
         return False
-
-
-
-
-

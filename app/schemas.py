@@ -64,6 +64,11 @@ class PublishedNews(BaseModel):
         description="Идентификатор новости (uuid или hash)",
         examples=["fhygiy7dxcb4557ffxdhjlkj9097t543"],
     )
+    title: str = Field(
+        ...,
+        description="Заголовок опубликованной новости",
+        examples=["Госкомиссия по радиочастотам расширила частотный ресурс для системы «Луч»"],
+    )
     published_at: datetime = Field(
         ...,
         description="Время публикации новости в телеграм канале",
@@ -121,19 +126,3 @@ class Source(BaseModel):
         description="Флаг активности источника.",
         examples=[True],
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

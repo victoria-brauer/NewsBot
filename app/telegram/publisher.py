@@ -8,12 +8,16 @@ from __future__ import annotations
 import asyncio
 import html
 import logging
+import json
+from datetime import datetime
 
 from app.config import settings
 from app.news_parser import collect_from_all_sources
 from app.redis_client import get_redis_client
 from app.schemas import NewsItem
 from app.telegram.bot import get_telegram_client
+from app.tasks import PUBLISHED_POSTS_KEY
+from app.utils import prepare_keywords, match_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -43,30 +47,6 @@ def truncate_text(text: str, max_len: int) -> str:
     return text[: max_len - 3].rstrip() + "..."
 
 
-def prepare_keywords(raw_keywords: list[str]) -> list[str]:
-    """Подготовить ключевые слова: нижний регистр + убрать пробелы + убрать дубликаты."""
-    seen: set[str] = set()
-    for word in raw_keywords:
-        w = str(word).strip().lower()
-        if w:
-            seen.add(w)
-    return list(seen)
-
-
-def match_keywords(title: str, summary: str | None, keywords: list[str]) -> list[str]:
-    """Найти ключевые слова, которые встретились в title/summary."""
-    if not keywords:
-        return []
-    text = (title + "\n" + (summary or "")).lower()
-
-    matched: list[str] = []
-    for kw in keywords:
-        if kw and kw in text:
-            matched.append(kw)
-    # Убираем дубли, сохранив порядок
-    return list(dict.fromkeys(matched))
-
-
 def format_news_message(item: NewsItem) -> str:
     """Сформировать HTML-сообщение для Telegram."""
     title = truncate_text(normalize_text(item.title), TITLE_MAX_LENGTH)
@@ -94,6 +74,12 @@ def format_news_message(item: NewsItem) -> str:
     if summary_html:
         parts.append(summary_html)
 
+    # Показываем совпавшие keywords
+    if getattr(item, "keywords", None):
+        tags = ", ".join(item.keywords[:5])
+        if tags:
+            parts.append(f"🏷️ {html.escape(tags)}")
+
     if url_html:
         parts.append(f'🔗 <a href="{url_html}">Читать полностью</a>')
 
@@ -111,8 +97,7 @@ def filter_not_published(items: list[NewsItem]) -> list[NewsItem]:
         if not url:
             continue
 
-        already = client.sismember(PUBLISHED_URLS_KEY, url)
-        if already:
+        if client.sismember(PUBLISHED_URLS_KEY, url):
             skipped += 1
             continue
 
@@ -165,6 +150,7 @@ async def publish_latest_news(limit: int = PUBLISH_LIMIT) -> int:
     to_send = filtered[:limit]
 
     client = await get_telegram_client()
+    redis_client = get_redis_client()
     sent_urls: list[str] = []
     try:
         sent = 0
@@ -175,6 +161,22 @@ async def publish_latest_news(limit: int = PUBLISH_LIMIT) -> int:
                 message,
                 parse_mode="html",
             )
+            # История публикаций (для /api/posts)
+            published_post = {
+                "news_id": item.id,
+                "published_at": datetime.utcnow().isoformat(),
+                "channel_id": settings.telegram_channel_id,
+                "title": item.title,
+                "url": str(item.url),
+                "source": item.source,
+                "keywords": item.keywords,
+            }
+
+            redis_client.rpush(
+                PUBLISHED_POSTS_KEY,
+                json.dumps(published_post, ensure_ascii=False),
+            )
+
             sent += 1
 
             url = str(item.url) if item.url else ""
