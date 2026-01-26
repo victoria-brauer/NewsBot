@@ -9,7 +9,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 SESSION_DIR = Path("data") / "telegram"
-SESSION_NAME = "user_session"
+SESSION_NAME = "bot_session"
 
 
 def ensure_session_dir() -> None:
@@ -30,11 +30,11 @@ async def get_telegram_client() -> TelegramClient:
     )
 
     try:
-        await client.start()
-        logger.info(f"Telegram client started session={session_path}")
+        await client.start(bot_token=settings.telegram_bot_token)
+        logger.info(f"Telegram bot client started session={session_path}")
         return client
     except Exception as e:
-        logger.exception(f"Telegram client failed session={session_path}")
+        logger.exception(f"Telegram bot client failed session={session_path}")
         raise
 
 

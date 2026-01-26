@@ -13,11 +13,12 @@ class Settings(BaseSettings):
     debug: bool = False            #Включает расширенное логирование, отладочный режим
     strict_filtering: bool = True  #Флаг строгой фильтрации новостей
 
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = "redis://localhost:6379/0" # в Docker: redis://redis:6379/0
     project_name: str = "newsbot"
 
     telegram_api_id: int = 0        #Telegram API ID для Telethon
     telegram_api_hash: str = ""     #Telegram API hash для Telethon
+    telegram_bot_token: str = ""    # BOT TOKEN из BotFather
     telegram_channel_id: str = ""   #ID/username канала для публикаций
 
     # Фильтры ключевых слов по умолчанию (можно переопределить через .env)

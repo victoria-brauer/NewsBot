@@ -1,0 +1,46 @@
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  api:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+      - telegram_sessions:/app/data/telegram
+
+  worker:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    command: celery -A app.tasks.celery_app worker -l INFO -P solo
+    volumes:
+      - .:/app
+      - telegram_sessions:/app/data/telegram
+
+  beat:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    command: celery -A app.tasks.celery_app beat -l INFO
+    volumes:
+      - .:/app
+      - telegram_sessions:/app/data/telegram
+
+volumes:
+  redis_data:
+  telegram_sessions:
